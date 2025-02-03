@@ -1,0 +1,86 @@
+name: Rust
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Rustfmt
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Run rustfmt
+        run: cargo fmt --check || cargo fmt && git config --global user.email "zerozerozero0216@gmail.com" && git config --global user.name "GitHub Actions" && git commit -am "Auto-format Rust code" && git push
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy (Linting)
+        run: cargo clippy -- -D warnings
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install grcov
+        run: cargo install grcov
+
+      - name: Setup Rust flags for coverage
+        run: |
+          export RUSTFLAGS="-Zinstrument-coverage"
+          export LLVM_PROFILE_FILE="cargo-test-%p-%m.profraw"
+
+      - name: Run tests with coverage
+        run: cargo test --no-fail-fast
+
+      - name: Generate coverage report
+        run: |
+          grcov . --binary-path target/debug/ -s . \
+            -t lcov --branch --ignore-not-existing \
+            -o lcov.info
+
+      - name: Show coverage in GitHub Summary
+        run: |
+          COVERAGE=$(grep -oP '(?<=LF:)\d+' lcov.info | awk '{total += $1} END {print total}')
+          echo "### 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Coverage:** ${COVERAGE} lines" >> $GITHUB_STEP_SUMMARY
