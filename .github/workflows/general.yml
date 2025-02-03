@@ -35,8 +35,7 @@ jobs:
           components: rustfmt
 
       - name: Run rustfmt
-        run: cargo fmt --check || cargo fmt && git config --global user.email "zerozerozero0216@gmail.com" && git config --global user.name "GitHub Actions" && git commit -am "Auto-format Rust code" && git push
-
+        run: cargo fmt --check || (cargo fmt && git config --global user.email "zerozerozero0216@gmail.com" && git config --global user.name "GitHub Actions" && git diff --quiet || (git commit -am "Auto-format Rust code" && git push))
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -61,20 +60,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
+  
       - name: Install grcov
         run: cargo install grcov
-
+  
       - name: Setup Rust flags for coverage
         run: |
+          export CARGO_INCREMENTAL=0
           export RUSTFLAGS="-Zinstrument-coverage"
-          export LLVM_PROFILE_FILE="cargo-test-%p-%m.profraw"
-
+          export LLVM_PROFILE_FILE="coverage-%p-%m.profraw"
+  
       - name: Run tests with coverage
         run: cargo test --no-fail-fast
-
-      - name: Generate coverage report
+  
+      - name: Collect coverage data
         run: |
+          ls -lah
+          ls -lah target/debug/
           grcov . --binary-path target/debug/ -s . \
             -t lcov --branch --ignore-not-existing \
             -o lcov.info
